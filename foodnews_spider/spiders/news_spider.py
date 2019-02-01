@@ -22,13 +22,10 @@ class NewsSpider(scrapy.Spider):
         # 获取当前搜索结果页面的页面链接信息，并传递给下一层解析器
         pageLinkList = response.xpath('//div[@class="tuwenjg"]//a[@id and @href]/@id').extract()
         pageLinkUrlList = response.xpath('//div[@class="tuwenjg"]//a[@id and @href]/@href').extract()
-        print('debug: pagelinklist len = {}, : {}'.format(len(pageLinkList),pageLinkList))
-        print('debug: pageurllist len = {}, :{}'.format(len(pageLinkUrlList),pageLinkUrlList))
         # 页面链接的值需要提取处理
         pageLinkUrlList = [link[link.find('http'):link.find('html')+4] for link in pageLinkUrlList]
         for i in range(len(pageLinkList)):
             if str(pageLinkList[i]).startswith('web_content'):
-                print('debug: request page url is ',pageLinkUrlList[i])
                 yield scrapy.Request(pageLinkUrlList[i], meta={'url': pageLinkUrlList[i]}, callback=self.page_parse)
         next_page = response.xpath('//a[@class="page-next"]').extract()
         if next_page:  # 如果搜索结果有下一页
@@ -53,6 +50,12 @@ class NewsSpider(scrapy.Spider):
         :param response:
         :return:
         """
-        print('debug: 第二次解析器获得url: ',response.meta['url'])
-        return None
+        print('debug: 第二层解析器获得url: ',response.url)
+        ld=ItemLoader(item=FoodnewsSpiderItem(),response=response)
+        ld.add_value('url',response.meta['url'])
+        ld.add_xpath('title', '//h1[@class="b-tit"][1]/text()')
+        ld.add_xpath('title', '//div[@class="cnt_bd"]/h1[1]/text()')
+        ld.add_xpath('content', '//div[@class="cnt_bd"]/p/text()')
+        ld.add_xpath('content', '//div[@class="body"]/p/text()')
+        return ld.load_item()
 
