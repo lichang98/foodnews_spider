@@ -3,6 +3,9 @@
 import scrapy
 from scrapy.loader import ItemLoader
 from foodnews_spider.items import FoodnewsSpiderItem
+from bs4 import BeautifulSoup
+from urllib3 import request,PoolManager
+import requests
 
 
 class NewsSpider(scrapy.Spider):
@@ -26,7 +29,8 @@ class NewsSpider(scrapy.Spider):
         pageLinkUrlList = [link[link.find('http'):link.find('html') + 4] for link in pageLinkUrlList]
         for i in range(len(pageLinkList)):
             if str(pageLinkList[i]).startswith('web_content'):
-                yield scrapy.Request(pageLinkUrlList[i], meta={'url': pageLinkUrlList[i]}, callback=self.cctv_page_parse)
+                yield scrapy.Request(pageLinkUrlList[i], meta={'url': pageLinkUrlList[i]},
+                                     callback=self.cctv_page_parse)
         next_page = response.xpath('//a[@class="page-next"]').extract()
         if next_page:  # 如果搜索结果有下一页
             url = response.xpath('//a[@class="page-next"]//@href').extract()[0]
@@ -61,10 +65,10 @@ class NewsSpider(scrapy.Spider):
 
 
 class HuanqiuNewsSpider(scrapy.Spider):
-    name="huanqiu_spider"
-    allowed_domains=['huanqiu.com']
-    start_urls=['http://health.huanqiu.com/food_safety/']
-    prev_url='' # 用于记录上一层解析的网页url
+    name = "huanqiu_spider"
+    allowed_domains = ['huanqiu.com']
+    start_urls = ['http://health.huanqiu.com/food_safety/']
+    prev_url = ''  # 用于记录上一层解析的网页url
 
     def parse(self, response):
         """
@@ -72,15 +76,15 @@ class HuanqiuNewsSpider(scrapy.Spider):
         :param response:
         :return:
         """
-        pageLinks=response.xpath('//li[@class="item"]//a/@href').extract()
-        pageLinks=list(set(pageLinks))
+        pageLinks = response.xpath('//li[@class="item"]//a/@href').extract()
+        pageLinks = list(set(pageLinks))
         for link in pageLinks:
-            yield scrapy.Request(link,callback=self.page_parse)
+            yield scrapy.Request(link, callback=self.page_parse)
         # 获取下一个第一层页面链接
-        self.prev_url=response.url
-        next_url=response.xpath('//a[@class="a1"][last()]/@href').extract()[0]
+        self.prev_url = response.url
+        next_url = response.xpath('//a[@class="a1"][last()]/@href').extract()[0]
         if next_url and self.prev_url != next_url:
-            yield scrapy.Request(next_url,callback=self.parse)
+            yield scrapy.Request(next_url, callback=self.parse)
         return None
 
     def page_parse(self, response):
@@ -89,10 +93,26 @@ class HuanqiuNewsSpider(scrapy.Spider):
         :param response:
         :return:
         """
-        ld=ItemLoader(item=FoodnewsSpiderItem(),response=response)
-        ld.add_value('url',response.url)
-        ld.add_xpath('title','//h1[@class="tle"][1]/text()')
-        ld.add_xpath('title','//div[@class="conText"]/h1[1]/text()')
-        ld.add_xpath('content','//div[@class="la_con"]//p/text()')
-        ld.add_xpath('content','//div[@class="conText"]//p/text()')
+        ld = ItemLoader(item=FoodnewsSpiderItem(), response=response)
+        ld.add_value('url', response.url)
+        ld.add_xpath('title', '//h1[@class="tle"][1]/text()')
+        ld.add_xpath('title', '//div[@class="conText"]/h1[1]/text()')
+        ld.add_xpath('content', '//div[@class="la_con"]//p/text()')
+        ld.add_xpath('content', '//div[@class="conText"]//p/text()')
         return ld.load_item()
+
+
+class SinaNewsSpider(scrapy.Spider):
+    name = 'sina_spider'
+    allowed_domains = ['sina.com.cn']
+    start_urls = [
+        'http://www.sina.com.cn/mid/search.shtml?range=all&c=news&q=%E9%A3%9F%E5%93%81%E5%AE%89%E5%85%A8&from=home&ie=utf-8']
+
+    def parse(self, response):
+        """
+        sina食品安全搜索结果页面第一层爬取解析
+        :param response:
+        :return:
+        """
+        # TODO 通过firefox 获得的请求的json文件获得数据
+        return None
