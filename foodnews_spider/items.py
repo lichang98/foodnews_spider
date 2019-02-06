@@ -14,9 +14,11 @@ def rmSpace(value):
     return value.strip('').replace('\r', ''). \
         replace('\n', '').replace('\t', '').replace(u'\u3000', '').replace('\xa0', '').strip()
 
+
 def rmEmpty(lst):
     """删除列表中的空项目"""
-    return list(filter(lambda x: x != '',lst))
+    return list(filter(lambda x: x != '', lst))
+
 
 class FoodnewsSpiderItem(scrapy.Item):
     # define the fields for your item here like:

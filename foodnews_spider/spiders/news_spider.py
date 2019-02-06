@@ -3,9 +3,8 @@
 import scrapy
 from scrapy.loader import ItemLoader
 from foodnews_spider.items import FoodnewsSpiderItem
-from bs4 import BeautifulSoup
-from urllib3 import request,PoolManager
-import requests
+import json
+from random import random
 
 
 class NewsSpider(scrapy.Spider):
@@ -105,8 +104,11 @@ class HuanqiuNewsSpider(scrapy.Spider):
 class SinaNewsSpider(scrapy.Spider):
     name = 'sina_spider'
     allowed_domains = ['sina.com.cn']
+    currIndex = 1
+    MAX_GET_COUNT = 10000  # 最大获取新闻个数
+    # FIXME 分析得到的请求参数可能与时间有关，需要测试请求参数是否长期有效
     start_urls = [
-        'http://www.sina.com.cn/mid/search.shtml?range=all&c=news&q=%E9%A3%9F%E5%93%81%E5%AE%89%E5%85%A8&from=home&ie=utf-8']
+        'http://api.search.sina.com.cn/?c=news&t=&q=%E9%A3%9F%E5%93%81%E5%AE%89%E5%85%A8&pf=2131425521&ps=2130770168&page=1&st']
 
     def parse(self, response):
         """
@@ -114,5 +116,46 @@ class SinaNewsSpider(scrapy.Spider):
         :param response:
         :return:
         """
-        # TODO 通过firefox 获得的请求的json文件获得数据
+        url = str(response.url)
+        parambgIndex = url.index('page=') + 5
+        paramedIndex = url.index('&st')
+        # 获得当前请求得到的json页面的数据
+        try:
+            jsdata = json.loads(str(response.body.decode('utf-8')))
+            pageUrls = [jsdata['result']['list'][i]['url'] for i in range(0, 20)]
+            print('debug: currurl={}, pagelinks={}'.format(url, pageUrls))
+            for pagelink in pageUrls:
+                yield scrapy.Request(pagelink, meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
+                                     callback=self.parse_page, dont_filter=True)
+            # 迭代处理下一个json页面数据
+            self.currIndex += 1
+            url = url[:parambgIndex] + str(self.currIndex) + url[paramedIndex:]
+            yield scrapy.Request(url, meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
+                                 callback=self.parse, dont_filter=True)
+        except json.JSONDecodeError:
+            # 处理页面重定向导致的问题
+            print('my debug: jsondecode error!!')
+            pfIndex = url.index('pf=') + 3
+            psIndex = url.index('&ps=')
+            url = url[:pfIndex] + str(int(random() * 10)) + url[psIndex:]
+            yield scrapy.Request(url, meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
+                                 callback=self.parse, dont_filter=True)
         return None
+
+    def parse_page(self, response):
+        """
+        解析新闻内容页面
+        :param response:
+        :return:
+        """
+        ld = ItemLoader(item=FoodnewsSpiderItem(), response=response)
+        ld.add_value('url', response.url)
+        ld.add_xpath('title', '//h1[@class="main-title"]//text()')
+        ld.add_xpath('title', '//div[@class="article-header clearfix"]/h1//text()')
+        ld.add_xpath('title', '//h2[@class="titName 5G_txta"]//text()')
+        ld.add_xpath('content', '//div[@id="artibody"]//p/font//text()')
+        ld.add_xpath('content', '//div[@id="artibody"]//p//text()')
+        ld.add_xpath('content', '//div[@class="article-body main-body"]//p//text()')
+        ld.add_xpath('content', '//div[@id="article"]//p//text()')
+        ld.add_xpath('content', '//div[@id="sina_keyword_ad_area2"]//p//text()')
+        return ld.load_item()
