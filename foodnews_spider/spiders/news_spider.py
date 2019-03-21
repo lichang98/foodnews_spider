@@ -104,11 +104,10 @@ class HuanqiuNewsSpider(scrapy.Spider):
 class SinaNewsSpider(scrapy.Spider):
     name = 'sina_spider'
     allowed_domains = ['sina.com.cn']
-    currIndex = 1
-    MAX_GET_COUNT = 10000  # 最大获取新闻个数
-    # FIXME 分析得到的请求参数可能与时间有关，需要测试请求参数是否长期有效
-    start_urls = [
-        'http://api.search.sina.com.cn/?c=news&t=&q=%E9%A3%9F%E5%93%81%E5%AE%89%E5%85%A8&pf=2131425521&ps=2130770168&page=1&st']
+    MAX_GET=100000
+    # start_urls = [
+    #     'http://api.search.sina.com.cn/?c=news&q=%E9%A3%9F%E5%93%81%E5%AE%89%E5%85%A8&page=1']
+    start_urls=['http://api.search.sina.com.cn/?c=news&q=%E9%A3%9F%E5%93%81%E5%AE%89%E5%85%A8&page='+str(i) for i in range(MAX_GET)]
 
     def parse(self, response):
         """
@@ -117,27 +116,17 @@ class SinaNewsSpider(scrapy.Spider):
         :return:
         """
         url = str(response.url)
-        parambgIndex = url.index('page=') + 5
-        paramedIndex = url.index('&st')
-        # 获得当前请求得到的json页面的数据
+        # 获得页面的json数据
         try:
             jsdata = json.loads(str(response.body.decode('utf-8')))
-            pageUrls = [jsdata['result']['list'][i]['url'] for i in range(0, 20)]
+            pageUrls = [jsdata['result']['list'][j]['url'] for j in range(0, 20)]
             print('debug: currurl={}, pagelinks={}'.format(url, pageUrls))
             for pagelink in pageUrls:
                 yield scrapy.Request(pagelink, meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
                                      callback=self.parse_page, dont_filter=True)
-            # 迭代处理下一个json页面数据
-            self.currIndex += 1
-            url = url[:parambgIndex] + str(self.currIndex) + url[paramedIndex:]
-            yield scrapy.Request(url, meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
-                                 callback=self.parse, dont_filter=True)
-        except json.JSONDecodeError:
-            # 处理页面重定向导致的问题
-            print('my debug: jsondecode error!!')
-            pfIndex = url.index('pf=') + 3
-            psIndex = url.index('&ps=')
-            url = url[:pfIndex] + str(int(random() * 10)) + url[psIndex:]
+        except:
+            # 处理页面重定向导致的问题, 重新请求
+            print('my debug: parse error occur!!')
             yield scrapy.Request(url, meta={'dont_redirect': True, 'handle_httpstatus_list': [302]},
                                  callback=self.parse, dont_filter=True)
         return None
