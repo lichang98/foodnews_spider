@@ -8,4 +8,5 @@
 ## 相关项目
 [基于Spring Boot、Scrapy 的爬虫配置与管理](https://github.com/lichang98/visualize_spider)
 该项目是我用Spring Boot 框架编写的基于Web的爬虫配置工具，可以比较方便的配置并启动一个新闻爬虫，并且能够看到一些监测数据。\
-爬虫是基于Scrapy，通过Java后台在线程中运行系统脚本，并在该脚本中启动爬虫并将输出重定向到一个文件中
+爬虫是基于Scrapy，通过Java后台在线程中运行系统脚本，并在该脚本中启动爬虫并将输出重定向到一个文件中。\
+后台数据库使用的是MongoDB
